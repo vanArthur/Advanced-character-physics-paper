@@ -8,18 +8,18 @@
 #define HEIGHT 1000
 
 // Cloth settings
-#define CLOTH_COLS 40
-#define CLOTH_ROWS 30
-#define SPACING 20 // Distance between particles
-#define START_X 100
-#define START_Y 100
+#define CLOTH_COLS 60
+#define CLOTH_ROWS 45
+#define SPACING 10 // Distance between particles
+#define START_X 200
+#define START_Y -500
 
-#define PARTICLE_RADIUS 3
+#define PARTICLE_RADIUS 2.5f
 #define PARTICLE_COLOR GetColor(0xFF6F61ff)
 #define CONSTRAINT_COLOR RAYWHITE
 
 // Physics settings
-#define GRAVITY 0.5f
+#define GRAVITY 0.8f
 #define TIME_STEP 0.2f
 #define NUM_ITERATIONS 5 // Increase iterations for stiffer cloth
 
@@ -307,7 +307,7 @@ void UpdateMovarrowInput(SphereMovementArrows *movarrow, Camera3D camera) {
 
 int main(void) {
   InitWindow(WIDTH, HEIGHT, "Advanced Character Physics");
-  SetTargetFPS(120);
+  SetTargetFPS(90);
 
   Mesh particleMesh = GenMeshSphere(PARTICLE_RADIUS, 8, 8);
   Model particleModel = LoadModelFromMesh(particleMesh);
