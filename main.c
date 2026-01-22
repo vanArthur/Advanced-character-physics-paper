@@ -10,20 +10,27 @@
 #define PARTICLE_COLOR GetColor(0xFF6F61ff)
 #define GRAVITY 1.f
 #define TIME_STEP 0.16f
+#define NUM_ITERATIONS 5
 
 typedef struct {
   Vector2 position;
   Vector2 prev_position;
-  Vector2 velocity;
   Vector2 acceleration;
   Color color;
 } Particle;
 
+typedef struct Constraint {
+  int p1;
+  int p2;
+  float rest_length;
+} Constraint;
+
 typedef struct {
   Particle *particles;
+  Constraint *constraints;
   int particle_count;
+  int constraint_count;
 } ParticleSystem;
-
 
 ParticleSystem psystem = {0};
 
@@ -31,12 +38,18 @@ Particle create_particle(float x, float y, Color color) {
   Particle p;
   p.position = (Vector2){x, y};
   p.prev_position = (Vector2){x, y};
-  p.velocity = (Vector2){0, 0};
   p.acceleration = (Vector2){1, GRAVITY};
   p.color = color;
   return p;
 }
 
+Constraint create_constraint(int p1, int p2, float rest_length) {
+  Constraint c;
+  c.p1 = p1;
+  c.p2 = p2;
+  c.rest_length = rest_length;
+  return c;
+}
 
 void verlet(ParticleSystem *psystem) {
   for (int i = 0; i < psystem->particle_count; i++) {
@@ -60,10 +73,32 @@ void accumulate_forces(ParticleSystem *psystem) {
 }
 
 void satisfy_constraints(ParticleSystem *psystem, int width, int height) {
-    for(int i = 0; i < psystem->particle_count; i++) {
-        Vector2 *pos = &psystem->particles[i].position;
-        *pos = Vector2Clamp(*pos, (Vector2){PARTICLE_RADIUS, PARTICLE_RADIUS}, (Vector2){width - PARTICLE_RADIUS, height - PARTICLE_RADIUS});
+  for (int i = 0; i < NUM_ITERATIONS; i++) {
+
+    for (int j = 0; j < psystem->particle_count; j++) {
+      Particle *p = &psystem->particles[j];
+      Vector2 *x = &p->position;
+      *x = Vector2Clamp(
+          *x, (Vector2){PARTICLE_RADIUS, PARTICLE_RADIUS},
+          (Vector2){width - PARTICLE_RADIUS, height - PARTICLE_RADIUS});
     }
+
+    for (int i = 0; i < psystem->constraint_count; i++) {
+      Constraint *c = &psystem->constraints[i];
+      Particle *p1 = &psystem->particles[c->p1];
+      Particle *p2 = &psystem->particles[c->p2];
+
+      Vector2 delta = {p2->position.x - p1->position.x,
+                       p2->position.y - p1->position.y};
+      float dist = sqrtf(delta.x * delta.x + delta.y * delta.y);
+      float diff = (dist - c->rest_length) / dist;
+
+      p1->position.x += delta.x * 0.5f * diff;
+      p1->position.y += delta.y * 0.5f * diff;
+      p2->position.x -= delta.x * 0.5f * diff;
+      p2->position.y -= delta.y * 0.5f * diff;
+    }
+  }
 }
 
 void time_step(ParticleSystem *psystem, int width, int height) {
@@ -88,7 +123,12 @@ int main(void) {
     psystem.particle_count++;
   }
 
-   while (!WindowShouldClose()) {
+  // create a constraint between the two particles
+  psystem.constraints = malloc(sizeof(Constraint) * 1);
+  psystem.constraints[psystem.constraint_count] = create_constraint(0, 1, 200.f);
+  psystem.constraint_count++;
+
+  while (!WindowShouldClose()) {
     BeginDrawing();
     ClearBackground(GetColor(0x052A4Fff));
 
