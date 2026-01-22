@@ -1,6 +1,7 @@
 #include <math.h>
 #include <raylib.h>
 #include <raymath.h>
+#include <rlgl.h>
 #include <stdlib.h>
 
 #define WIDTH 1000
@@ -17,14 +18,15 @@
 #define PARTICLE_COLOR GetColor(0xFF6F61ff)
 #define CONSTRAINT_COLOR RAYWHITE
 
+// Physics settings
 #define GRAVITY 0.5f
 #define TIME_STEP 0.2f
 #define NUM_ITERATIONS 5 // Increase iterations for stiffer cloth
 
 typedef struct {
-  Vector2 position;
-  Vector2 prev_position;
-  Vector2 acceleration;
+  Vector3 position;
+  Vector3 prev_position;
+  Vector3 acceleration;
   bool is_pinned;
   Color color;
 } Particle;
@@ -44,14 +46,40 @@ typedef struct {
 
 ParticleSystem psystem = {0};
 
-Particle create_particle(float x, float y, Color color, bool pinned) {
+Particle create_particle(float x, float y, float z, Color color, bool pinned) {
   Particle p;
-  p.position = (Vector2){x, y};
-  p.prev_position = (Vector2){x, y};
-  p.acceleration = (Vector2){1, GRAVITY};
+  p.position = (Vector3){x, y, z};
+  p.prev_position = (Vector3){x, y, z};
+  p.acceleration = (Vector3){0, 0, 0};
   p.color = color;
   p.is_pinned = pinned;
   return p;
+}
+
+// check if ray intersects with plane and return intersection point
+// source:
+// https://lousodrome.net/blog/light/2020/07/03/intersection-of-a-ray-and-a-plane/
+Vector3 GetRayPlaneIntersection(Ray ray, Vector3 planePos,
+                                Vector3 planeNormal) {
+  float denominator = Vector3DotProduct(ray.direction, planeNormal);
+  // Check if the ray is parallel to the plane, dotproduct is zero, no
+  // intersection
+  if (fabs(denominator) > 1e-6) {
+
+    // Numerator: ((PlanePos - RayPos) . PlaneNormal)
+    Vector3 vectorToPlane = Vector3Subtract(planePos, ray.position);
+    // projected onto plane normal
+    float numerator = Vector3DotProduct(vectorToPlane, planeNormal);
+
+    // t (Distance)
+    float t = numerator / denominator;
+
+    // final Point: Origin + (Direction * t)
+    return Vector3Add(ray.position, Vector3Scale(ray.direction, t));
+  }
+
+  // Return zero vector if no intersection
+  return (Vector3){0};
 }
 
 Constraint create_constraint(int p1, int p2, float rest_length) {
@@ -67,21 +95,24 @@ void verlet(ParticleSystem *psystem) {
     Particle *p = &psystem->particles[i];
 
     if (p->is_pinned)
-      continue; // Don't move pinned particles
+      continue;
 
-    Vector2 *x = &p->position;
-    Vector2 temp = *x;
-    Vector2 *x_prev = &p->prev_position;
-    Vector2 *a = &p->acceleration;
+    Vector3 temp = p->position;
 
-    // Apply simple friction (0.99f) to stop it from moving forever
-    float velocity_x = (x->x - x_prev->x) * 0.99f;
-    float velocity_y = (x->y - x_prev->y) * 0.99f;
+    // Calculate Velocity
+    Vector3 velocity = Vector3Subtract(p->position, p->prev_position);
+    velocity = Vector3Scale(velocity, 0.99f); // Damping
 
-    x->x += velocity_x + a->x * TIME_STEP * TIME_STEP;
-    x->y += velocity_y + a->y * TIME_STEP * TIME_STEP;
+    // Calculate Acceleration term (a * dt * dt)
+    Vector3 accelerationStep =
+        Vector3Scale(p->acceleration, TIME_STEP * TIME_STEP);
 
-    *x_prev = temp;
+    // Verlet Integration: next = curr + vel + acc
+    Vector3 nextPos =
+        Vector3Add(Vector3Add(p->position, velocity), accelerationStep);
+
+    p->position = nextPos;
+    p->prev_position = temp;
   }
 }
 
@@ -105,31 +136,29 @@ void satisfy_constraints(ParticleSystem *psystem) {
       Particle *p1 = &psystem->particles[c->p1];
       Particle *p2 = &psystem->particles[c->p2];
 
-      Vector2 delta = {p2->position.x - p1->position.x,
-                       p2->position.y - p1->position.y};
+      Vector3 delta = Vector3Subtract(p2->position, p1->position);
 
-      float delta_length_squared = delta.x * delta.x + delta.y * delta.y;
+      float current_dist = Vector3Length(delta);
 
-      if (delta_length_squared < 0.0001f)
-        delta_length_squared = 0.0001f;
+      // Avoid division by zero
+      if (current_dist == 0.0f)
+        continue;
 
-      float rest_sq = c->rest_length * c->rest_length;
-      float factor = rest_sq / (delta_length_squared + rest_sq) - 0.5f;
+      // Calculate the difference ratio
+      // how far we are from rest length vs current length
+      float difference = (current_dist - c->rest_length) / current_dist;
 
-      delta.x *= factor;
-      delta.y *= factor;
+      // We want to move each particle half the difference
+      Vector3 correction = Vector3Scale(delta, difference * 0.5f);
 
       if (!p1->is_pinned && !p2->is_pinned) {
-        p1->position.x -= delta.x;
-        p1->position.y -= delta.y;
-        p2->position.x += delta.x;
-        p2->position.y += delta.y;
+        p1->position = Vector3Add(p1->position, correction);
+        p2->position = Vector3Subtract(p2->position, correction);
       } else if (p1->is_pinned && !p2->is_pinned) {
-        p2->position.x += delta.x * 2;
-        p2->position.y += delta.y * 2;
+        p2->position =
+            Vector3Subtract(p2->position, Vector3Scale(correction, 2.0f));
       } else if (!p1->is_pinned && p2->is_pinned) {
-        p1->position.x -= delta.x * 2;
-        p1->position.y -= delta.y * 2;
+        p1->position = Vector3Add(p1->position, Vector3Scale(correction, 2.0f));
       }
     }
   }
@@ -145,107 +174,131 @@ int main(void) {
   InitWindow(WIDTH, HEIGHT, "Advanced Character Physics");
   SetTargetFPS(120);
 
+  Camera3D camera = {0};
+  rlSetClipPlanes(0.1f, 2000.0f);
+
+  Vector3 target = {START_X + (CLOTH_COLS * SPACING) / 2.0f,
+                    START_Y + (CLOTH_ROWS * SPACING) / 2.0f, 0.0f};
+  camera.target = target;
+  camera.position = (Vector3){target.x, target.y, 800.0f};
+  camera.up = (Vector3){0.0f, -1.0f, 0.0f};
+  camera.fovy = 45.0f;
+  camera.projection = CAMERA_PERSPECTIVE;
+
+  // Allocate
   int num_particles = CLOTH_COLS * CLOTH_ROWS;
-  // Horizontal constraints + Vertical constraints
   int num_constraints =
       (CLOTH_COLS - 1) * CLOTH_ROWS + (CLOTH_ROWS - 1) * CLOTH_COLS;
-
   psystem.particles = malloc(sizeof(Particle) * num_particles);
   psystem.constraints = malloc(sizeof(Constraint) * num_constraints);
 
-  // Initialize Particles (Grid)
+  // Init Particles
   for (int y = 0; y < CLOTH_ROWS; y++) {
     for (int x = 0; x < CLOTH_COLS; x++) {
       int index = y * CLOTH_COLS + x;
       float px = START_X + x * SPACING;
       float py = START_Y + y * SPACING;
 
-      // Pin the top row every 5th particle to act like a curtain
       bool pin = (y == 0 && (x % 5 == 0 || x == CLOTH_COLS - 1));
 
-      psystem.particles[index] = create_particle(px, py, PARTICLE_COLOR, pin);
+      psystem.particles[index] =
+          create_particle(px, py, 0, PARTICLE_COLOR, pin);
       psystem.particle_count++;
     }
   }
 
-  // Initialize Constraints
+  // Init Constraints
   for (int y = 0; y < CLOTH_ROWS; y++) {
     for (int x = 0; x < CLOTH_COLS; x++) {
       int current_idx = y * CLOTH_COLS + x;
-
-      // Connect to Right Neighbor
       if (x < CLOTH_COLS - 1) {
-        int right_idx = y * CLOTH_COLS + (x + 1);
-        psystem.constraints[psystem.constraint_count] =
-            create_constraint(current_idx, right_idx, SPACING);
-        psystem.constraint_count++;
+        psystem.constraints[psystem.constraint_count++] =
+            create_constraint(current_idx, y * CLOTH_COLS + (x + 1), SPACING);
       }
-
-      // Connect to Bottom Neighbor
       if (y < CLOTH_ROWS - 1) {
-        int down_idx = (y + 1) * CLOTH_COLS + x;
-        psystem.constraints[psystem.constraint_count] =
-            create_constraint(current_idx, down_idx, SPACING);
-        psystem.constraint_count++;
+        psystem.constraints[psystem.constraint_count++] =
+            create_constraint(current_idx, (y + 1) * CLOTH_COLS + x, SPACING);
       }
     }
   }
 
-  // Variable to store which particle is being dragged
   int dragged_particle_idx = -1;
+  float time_counter = 0.0f;
 
   while (!WindowShouldClose()) {
-    BeginDrawing();
-    ClearBackground(GetColor(0x052A4Fff));
+    SetTargetFPS(120);
+    float dt = GetFrameTime();
+    time_counter += dt * 0.1f;
 
-    // --- MOUSE INTERACTION ---
-    Vector2 mouse_pos = GetMousePosition();
+    // --- Camera Update ---
+    float radius = 1000.0f;
+    camera.position.x = target.x + radius * sinf(time_counter);
+    camera.position.z = radius * cosf(time_counter);
+    camera.position.y = target.y - 300.0f;
 
+    // --- Mouse Interaction ---
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-      float min_dist = 30.0f; // Click radius
-      for (int i = 0; i < psystem.particle_count; i++) {
-        float dx = mouse_pos.x - psystem.particles[i].position.x;
-        float dy = mouse_pos.y - psystem.particles[i].position.y;
-        float dist = sqrtf(dx * dx + dy * dy);
+      Ray ray = GetMouseRay(GetMousePosition(), camera);
+      float min_dist = 100000.0f;
+      int closest_idx = -1;
 
-        if (dist < min_dist) {
-          min_dist = dist;
-          dragged_particle_idx = i;
+      for (int i = 0; i < psystem.particle_count; i++) {
+        RayCollision collision =
+            GetRayCollisionSphere(ray, psystem.particles[i].position, 15.0f);
+        if (collision.hit && collision.distance < min_dist) {
+          min_dist = collision.distance;
+          closest_idx = i;
         }
       }
+      dragged_particle_idx = closest_idx;
     }
 
     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
       dragged_particle_idx = -1;
     }
 
-    // Update Dragged Particle Position
     if (dragged_particle_idx != -1) {
-      Particle *p = &psystem.particles[dragged_particle_idx];
-      p->position = mouse_pos;
-      p->prev_position = mouse_pos;
+      Ray ray = GetMouseRay(GetMousePosition(), camera);
+
+      // Create a plane at the particle's current Z depth to drag along
+      Vector3 planePos = psystem.particles[dragged_particle_idx].position;
+      Vector3 planeNormal = {0, 0, 1}; // Dragging on XY plane
+
+      Vector3 hitPoint = GetRayPlaneIntersection(ray, planePos, planeNormal);
+
+      psystem.particles[dragged_particle_idx].position = hitPoint;
+      // Reset prev_position to kill velocity
+      psystem.particles[dragged_particle_idx].prev_position = hitPoint;
     }
 
     time_step(&psystem);
 
-    // Draw Constraints (Lines)
+    BeginDrawing();
+    ClearBackground(GetColor(0x052A4Fff));
+    BeginMode3D(camera);
+
+    // Draw Constraints
     for (int i = 0; i < psystem.constraint_count; i++) {
       Constraint c = psystem.constraints[i];
-      Vector2 p1 = psystem.particles[c.p1].position;
-      Vector2 p2 = psystem.particles[c.p2].position;
-      DrawLineV(p1, p2, Fade(CONSTRAINT_COLOR, 0.5f));
+      Vector3 p1 = psystem.particles[c.p1].position;
+      Vector3 p2 = psystem.particles[c.p2].position;
+      DrawLine3D(p1, p2, Fade(CONSTRAINT_COLOR, 0.4f));
     }
 
     // Draw Particles
     for (int i = 0; i < psystem.particle_count; i++) {
       Particle *p = &psystem.particles[i];
       if (p->is_pinned)
-        DrawCircleV(p->position, PARTICLE_RADIUS + 2, RED);
+        DrawCircle3D(p->position, PARTICLE_RADIUS + 2.f, (Vector3){0,1,0}, 0, RED);
       else
-        DrawCircleV(p->position, PARTICLE_RADIUS, p->color);
+        DrawCircle3D(p->position, PARTICLE_RADIUS, (Vector3){0,1,0}, 0, p->color);
     }
 
-    DrawText("Hold SPACE for Wind | Drag with MOUSE", 10, 10, 20, RAYWHITE);
+    DrawGrid(100, 50.0f);
+    EndMode3D();
+
+    DrawText("Space for Wind | Mouse to Drag", 10, 10, 20,
+             RAYWHITE);
     DrawFPS(10, 40);
     EndDrawing();
   }
