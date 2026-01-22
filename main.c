@@ -268,6 +268,16 @@ void UpdateMovarrowInput(SphereMovementArrows *movarrow, Camera3D camera) {
       if (CheckRayBoxCollision(ray, movarrow->position, tip,
                                SPHERE_MOVEMENT_ARROW_THICKNESS * 3)) {
         movarrow->selected_axis = i;
+
+        // Calculate offset to prevent jumping
+        Vector3 planeNormal = {0, 1, 0};
+        if (movarrow->selected_axis == 1) {
+          Vector3 camDir = Vector3Subtract(camera.target, camera.position);
+          planeNormal = (fabs(camDir.x) > fabs(camDir.z)) ? (Vector3){0, 0, 1}
+                                                          : (Vector3){1, 0, 0};
+        }
+        Vector3 hitPoint = GetRayPlaneIntersection(ray, movarrow->position, planeNormal);
+        movarrow->click_offset = Vector3Subtract(movarrow->position, hitPoint);
         break;
       }
     }
@@ -297,13 +307,19 @@ void UpdateMovarrowInput(SphereMovementArrows *movarrow, Camera3D camera) {
 
     // Update position (Check for non-zero result to ensure validity)
     if (Vector3Length(hitPoint) > 0) {
+      float lerp_speed = 10.0f; // Adjust for feel
+      float amount = lerp_speed * GetFrameTime();
+      if (amount > 1.0f) amount = 1.0f;
+
+      Vector3 targetPos = Vector3Add(hitPoint, movarrow->click_offset);
+
       // Only update the component matching the selected axis
       if (movarrow->selected_axis == 0)
-        movarrow->position.x = hitPoint.x;
+        movarrow->position.x = Lerp(movarrow->position.x, targetPos.x, amount);
       if (movarrow->selected_axis == 1)
-        movarrow->position.y = hitPoint.y;
+        movarrow->position.y = Lerp(movarrow->position.y, targetPos.y, amount);
       if (movarrow->selected_axis == 2)
-        movarrow->position.z = hitPoint.z;
+        movarrow->position.z = Lerp(movarrow->position.z, targetPos.z, amount);
     }
   }
 }
