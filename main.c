@@ -325,6 +325,8 @@ void UpdateMovarrowInput(SphereMovementArrows *movarrow, Camera3D camera) {
 }
 
 int main(void) {
+  //anti-aliasing
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(WIDTH, HEIGHT, "Advanced Character Physics");
   SetTargetFPS(90);
 
@@ -386,6 +388,10 @@ int main(void) {
   int dragged_particle_idx = -1;
   float time_counter = 0.0f;
 
+  // UI State
+  bool auto_sphere_move = false;
+  Rectangle toggle_btn_bounds = { 10, 70, 240, 30 };
+
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
 
@@ -399,10 +405,28 @@ int main(void) {
     camera.position.z = radius * cosf(time_counter);
     camera.position.y = target.y - 300.0f;
 
-    // --- Mouse Interaction ---
-    UpdateMovarrowInput(&movarrows, camera);
+    // --- UI Interaction ---
+    Vector2 mouse_pos = GetMousePosition();
+    bool mouse_on_ui = CheckCollisionPointRec(mouse_pos, toggle_btn_bounds);
 
-    if (movarrows.selected_axis == -1) {
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouse_on_ui) {
+        auto_sphere_move = !auto_sphere_move;
+    }
+
+    // --- Auto Sphere Movement ---
+    if (auto_sphere_move) {
+        movarrows.position.x = target.x;
+        movarrows.position.y = target.y;
+        movarrows.position.z = sinf(GetTime() * 0.30f) * 340.0f;
+    }
+
+    // --- Mouse Interaction ---
+    // Only allow manual interaction if not auto-moving and not clicking UI
+    if (!auto_sphere_move && !mouse_on_ui) {
+        UpdateMovarrowInput(&movarrows, camera);
+    }
+
+    if (movarrows.selected_axis == -1 && !mouse_on_ui) {
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Ray ray = GetMouseRay(GetMousePosition(), camera);
         float min_dist = 100000.0f;
@@ -482,6 +506,12 @@ int main(void) {
 
     DrawText("Space for Wind | Mouse to Drag | A/D to Rotate", 10, 10, 20, RAYWHITE);
     DrawFPS(10, 40);
+
+    // Draw Toggle Button
+    DrawRectangleRec(toggle_btn_bounds, auto_sphere_move ? GREEN : RED);
+    DrawRectangleLinesEx(toggle_btn_bounds, 2, RAYWHITE);
+    DrawText("Auto-Move Sphere", toggle_btn_bounds.x + 10, toggle_btn_bounds.y + 5, 20, WHITE);
+
     EndDrawing();
   }
 
