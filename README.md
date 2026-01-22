@@ -1,4 +1,39 @@
-```console
-$ cc nob.c -o nob
-$ ./nob && ./main
+# Cloth Simulation
+
+A real-time 3D cloth simulation implemented in C using [Raylib](https://www.raylib.com/), physics based on Thomas Jakobsen's 2001 paper ["Advanced Character Physics"](https://www.cs.cmu.edu/afs/cs/academic/class/15462-s13/www/lec_slides/Jakobsen.pdf).
+
+![Cloth Simulation](screenshot.png)
+
+## Features
+
+- **Verlet Integration** - Position-based physics for stable simulation
+- **Constraint Satisfaction** - Distance constraints maintain cloth structure
+- **Sphere Collision** - Interactive collision with a movable sphere
+- **Real-time Interaction** - Drag particles and control the scene with mouse/keyboard
+
+## Controls
+
+| Input | Action |
+|-------|--------|
+| `A` / `D` or `←` / `→` | Rotate camera |
+| `Space` | Apply wind force |
+| `Left Click + Drag` on particles | Drag particles |
+| `Left Click + Drag` on arrows | Move collision sphere |
+
+## Building
+
+### Linux
+
+```bash
+cc nob.c -o nob
+./nob && ./main
 ```
+
+## References
+
+- [Advanced Character Physics - Thomas Jakobsen (2001)](https://www.cs.cmu.edu/afs/cs/academic/class/15462-s13/www/lec_slides/Jakobsen.pdf)
+- [Raylib](https://www.raylib.com/)
+
+## License
+
+MIT License - See [LICENSE](LICENSE) for details

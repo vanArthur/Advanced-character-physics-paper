@@ -1,3 +1,13 @@
+/**
+ * Cloth Simulation using Verlet Integration
+ * 
+ * Implementation based on Thomas Jakobsen's 2001 paper
+ * "Advanced Character Physics"
+ * 
+ * Features: Verlet integration, distance constraints, sphere collision,
+ * and interactive particle dragging.
+ */
+
 #include <math.h>
 #include <raylib.h>
 #include <raymath.h>
@@ -141,7 +151,7 @@ void resolve_sphere_collision(ParticleSystem *psystem, Vector3 spherePos,
   }
 }
 
-// vertial integration step
+// verlet integration step
 void verlet(ParticleSystem *psystem) {
   for (int i = 0; i < psystem->particle_count; i++) {
     Particle *p = &psystem->particles[i];
@@ -354,6 +364,11 @@ int main(void) {
       (CLOTH_COLS - 1) * CLOTH_ROWS + (CLOTH_ROWS - 1) * CLOTH_COLS;
   psystem.particles = malloc(sizeof(Particle) * num_particles);
   psystem.constraints = malloc(sizeof(Constraint) * num_constraints);
+
+  if (!psystem.particles || !psystem.constraints) {
+    TraceLog(LOG_ERROR, "Failed to allocate memory for particle system");
+    return 1;
+  }
 
   // Init Particles
   for (int y = 0; y < CLOTH_ROWS; y++) {
