@@ -452,7 +452,7 @@ int main(void) {
 
     // Draw Collision Sphere
     DrawSphere(movarrows.position, SPHERE_RADIUS, Fade(SKYBLUE, 0.5f));
-    DrawSphereWires(movarrows.position, SPHERE_RADIUS, 16, 16, WHITE);
+    DrawSphereWires(movarrows.position, SPHERE_RADIUS + 1.f, 16, 16, WHITE);
 
     // Draw Movement Arrows
     DrawMovementArrows(movarrows.position);
