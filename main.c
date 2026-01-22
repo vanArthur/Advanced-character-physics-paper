@@ -174,8 +174,11 @@ void accumulate_forces(ParticleSystem *psystem) {
     p->acceleration.y = GRAVITY;
 
     if (IsKeyDown(KEY_SPACE)) {
-      p->acceleration.x += 0.5f;
-      p->acceleration.z += 0.8f;
+      p->acceleration.x = 0.5f;
+      p->acceleration.z = 0.8f;
+    } else {
+      p->acceleration.x = 0.0f;
+      p->acceleration.z = 0.0f;
     }
   }
 }
