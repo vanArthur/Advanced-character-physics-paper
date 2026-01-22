@@ -384,47 +384,47 @@ int main(void) {
     // --- Mouse Interaction ---
     UpdateMovarrowInput(&movarrows, camera);
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-      Ray ray = GetMouseRay(GetMousePosition(), camera);
-      float min_dist = 100000.0f;
-      int closest_idx = -1;
+    if (movarrows.selected_axis == -1) {
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Ray ray = GetMouseRay(GetMousePosition(), camera);
+        float min_dist = 100000.0f;
+        int closest_idx = -1;
 
-      for (int i = 0; i < psystem.particle_count; i++) {
-        RayCollision collision =
-            GetRayCollisionSphere(ray, psystem.particles[i].position, 15.0f);
-        if (collision.hit && collision.distance < min_dist) {
-          min_dist = collision.distance;
-          closest_idx = i;
+        for (int i = 0; i < psystem.particle_count; i++) {
+          RayCollision collision =
+              GetRayCollisionSphere(ray, psystem.particles[i].position, 15.0f);
+          if (collision.hit && collision.distance < min_dist) {
+            min_dist = collision.distance;
+            closest_idx = i;
+          }
         }
+        dragged_particle_idx = closest_idx;
       }
-      dragged_particle_idx = closest_idx;
-    }
 
-    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-      dragged_particle_idx = -1;
-    }
+      if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        dragged_particle_idx = -1;
+      }
 
-    if (dragged_particle_idx != -1) {
-      Ray ray = GetMouseRay(GetMousePosition(), camera);
+      if (dragged_particle_idx != -1) {
+        Ray ray = GetMouseRay(GetMousePosition(), camera);
+        Vector3 planePos = psystem.particles[dragged_particle_idx].position;
+        Vector3 planeNormal = {0, 0, 1}; // Simple drag plane
 
-      // Create a plane at the particle's current Z depth to drag along
-      Vector3 planePos = psystem.particles[dragged_particle_idx].position;
-      Vector3 planeNormal = {0, 0, 1}; // Dragging on XY plane
+        // Adjust plane normal based on view for better feel
+        Vector3 camDir =
+            Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+        if (fabs(camDir.z) > fabs(camDir.x))
+          planeNormal = (Vector3){0, 0, 1};
+        else
+          planeNormal = (Vector3){1, 0, 0};
 
-      // Adjust plane normal based on view for better feel
-      Vector3 camDir =
-          Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-      if (fabs(camDir.z) > fabs(camDir.x))
-        planeNormal = (Vector3){0, 0, 1};
-      else
-        planeNormal = (Vector3){1, 0, 0};
+        Vector3 hitPoint = GetRayPlaneIntersection(ray, planePos, planeNormal);
 
-      Vector3 hitPoint = GetRayPlaneIntersection(ray, planePos, planeNormal);
-
-      if (Vector3Length(hitPoint) > 0) {
-        psystem.particles[dragged_particle_idx].position = hitPoint;
-        // kill velocity
-        psystem.particles[dragged_particle_idx].prev_position = hitPoint;
+        if (Vector3Length(hitPoint) > 0) {
+          psystem.particles[dragged_particle_idx].position = hitPoint;
+          // kill velocity
+          psystem.particles[dragged_particle_idx].prev_position = hitPoint;
+        }
       }
     }
 
