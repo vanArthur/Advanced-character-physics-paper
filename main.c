@@ -374,15 +374,14 @@ int main(void) {
     float dt = GetFrameTime();
 
     // --- Camera Orbit ---
-    // (Disabled automatic rotation if dragging sphere to make it easier to
-    // control)
-    if (movarrows.selected_axis == -1 && dragged_particle_idx == -1) {
-      time_counter += dt * 0.1f;
-      float radius = 1000.0f;
-      camera.position.x = target.x + radius * sinf(time_counter);
-      camera.position.z = radius * cosf(time_counter);
-      camera.position.y = target.y - 300.0f;
-    }
+    float rotation_speed = 1.5f;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) time_counter += dt * rotation_speed;
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) time_counter -= dt * rotation_speed;
+
+    float radius = 1000.0f;
+    camera.position.x = target.x + radius * sinf(time_counter);
+    camera.position.z = radius * cosf(time_counter);
+    camera.position.y = target.y - 300.0f;
 
     // --- Mouse Interaction ---
     UpdateMovarrowInput(&movarrows, camera);
@@ -465,7 +464,7 @@ int main(void) {
     DrawGrid(100, 50.0f);
     EndMode3D();
 
-    DrawText("Space for Wind | Mouse to Drag", 10, 10, 20, RAYWHITE);
+    DrawText("Space for Wind | Mouse to Drag | A/D to Rotate", 10, 10, 20, RAYWHITE);
     DrawFPS(10, 40);
     EndDrawing();
   }
