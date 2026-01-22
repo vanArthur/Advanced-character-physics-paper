@@ -382,6 +382,8 @@ int main(void) {
     }
 
     // --- Mouse Interaction ---
+    UpdateMovarrowInput(&movarrows, camera);
+
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
       Ray ray = GetMouseRay(GetMousePosition(), camera);
       float min_dist = 100000.0f;
