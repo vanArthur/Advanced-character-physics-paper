@@ -44,7 +44,7 @@ bool download_and_extract_raylib(void) {
     // Use PowerShell to download on Windows
     cmd_append(&cmd, "powershell", "-Command",
         nob_temp_sprintf("Invoke-WebRequest -Uri '%s' -OutFile '%s'", RAYLIB_URL, RAYLIB_ARCHIVE));
-    if (!cmd_run_sync(cmd)) {
+    if (!cmd_run(&cmd)) {
         nob_log(NOB_ERROR, "Failed to download raylib");
         return false;
     }
@@ -53,14 +53,14 @@ bool download_and_extract_raylib(void) {
     cmd.count = 0;
     cmd_append(&cmd, "powershell", "-Command",
         nob_temp_sprintf("Expand-Archive -Path '%s' -DestinationPath '.' -Force", RAYLIB_ARCHIVE));
-    if (!cmd_run_sync(cmd)) {
+    if (!cmd_run(&cmd)) {
         nob_log(NOB_ERROR, "Failed to extract raylib");
         return false;
     }
 #else
     // Use curl to download on Unix-like systems
     cmd_append(&cmd, "curl", "-L", "-o", RAYLIB_ARCHIVE, RAYLIB_URL);
-    if (!cmd_run_sync(cmd)) {
+    if (!cmd_run(&cmd)) {
         nob_log(NOB_ERROR, "Failed to download raylib");
         return false;
     }
@@ -68,7 +68,7 @@ bool download_and_extract_raylib(void) {
     // Extract using tar
     cmd.count = 0;
     cmd_append(&cmd, "tar", "-xzf", RAYLIB_ARCHIVE);
-    if (!cmd_run_sync(cmd)) {
+    if (!cmd_run(&cmd)) {
         nob_log(NOB_ERROR, "Failed to extract raylib");
         return false;
     }
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 #endif
 #endif
     
-    if (!cmd_run_sync(cmd)) {
+    if (!cmd_run(&cmd)) {
         return 1;
     }
     
