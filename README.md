@@ -22,12 +22,39 @@ A real-time 3D cloth simulation implemented in C using [Raylib](https://www.rayl
 
 ## Building
 
+The build system automatically detects your platform and downloads the appropriate raylib 5.5 release.
+
 ### Linux
 
 ```bash
 cc nob.c -o nob
 ./nob && ./main
 ```
+
+### macOS
+
+```bash
+cc nob.c -o nob
+./nob && ./main
+```
+
+### Windows
+
+Using MSVC (Visual Studio Command Prompt):
+```cmd
+cl.exe nob.c
+nob.exe
+main.exe
+```
+
+Or using MinGW/GCC:
+```bash
+gcc nob.c -o nob.exe
+nob.exe
+main.exe
+```
+
+**Note:** The first build will automatically download raylib 5.5 for your platform from the official GitHub releases. Subsequent builds will use the cached version.
 
 ## References
 

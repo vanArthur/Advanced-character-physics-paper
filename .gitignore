@@ -1,3 +1,8 @@
 main
+main.exe
 nob
+nob.exe
 Jakobsen.pdf
+raylib-*
+*.tar.gz
+*.zip
