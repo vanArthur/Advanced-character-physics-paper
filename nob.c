@@ -110,6 +110,7 @@ int main(int argc, char **argv) {
   cmd_append(&command, "-framework", "Cocoa");
   cmd_append(&command, "-framework", "OpenGL");
   cmd_append(&command, "-framework", "IOKit");
+  cmd_append(&command, "-Wl,-rpath,@executable_path/raylib-5.5_macos/lib");
 #else
   cmd_append(&command, "-l:libraylib.a");
   cmd_append(&command, "-lm");
