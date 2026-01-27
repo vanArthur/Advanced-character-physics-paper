@@ -15,21 +15,24 @@ RaylibPlatform get_raylib_platform(void) {
 
 #ifdef _WIN32
   platform.name = "Windows";
-  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_mingw-w64.zip";
+  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/"
+                 "raylib-5.5_win64_mingw-w64.zip";
   platform.dir = "raylib-5.5_win64_mingw-w64";
   platform.archive = "raylib-5.5_win64_mingw-w64.zip";
 #elif __APPLE__
   platform.name = "macOS";
-  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_macos.tar.gz";
+  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/"
+                 "raylib-5.5_macos.tar.gz";
   platform.dir = "raylib-5.5_macos";
   platform.archive = "raylib-5.5_macos.tar.gz";
 #elif __linux__
   platform.name = "Linux";
-  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_linux_amd64.tar.gz";
+  platform.url = "https://github.com/raysan5/raylib/releases/download/5.5/"
+                 "raylib-5.5_linux_amd64.tar.gz";
   platform.dir = "raylib-5.5_linux_amd64";
   platform.archive = "raylib-5.5_linux_amd64.tar.gz";
 #else
-  #error "Unsupported platform"
+#error "Unsupported platform"
 #endif
 
   return platform;
@@ -56,8 +59,9 @@ bool ensure_raylib(RaylibPlatform platform) {
   Cmd extract_cmd = {0};
 #ifdef _WIN32
   // Use PowerShell for extraction on Windows
-  cmd_append(&extract_cmd, "powershell", "-Command", 
-             temp_sprintf("Expand-Archive -Path %s -DestinationPath . -Force", platform.archive));
+  cmd_append(&extract_cmd, "powershell", "-Command",
+             temp_sprintf("Expand-Archive -Path %s -DestinationPath . -Force",
+                          platform.archive));
 #else
   // Use tar for Unix-like systems
   cmd_append(&extract_cmd, "tar", "-xzf", platform.archive);
@@ -69,18 +73,6 @@ bool ensure_raylib(RaylibPlatform platform) {
   }
 
   nob_log(NOB_INFO, "Raylib downloaded and extracted successfully");
-
-  // Clean up archive
-  if (file_exists(platform.archive)) {
-#ifdef _WIN32
-    cmd_append(&command, "del", platform.archive);
-#else
-    Cmd rm_cmd = {0};
-    cmd_append(&rm_cmd, "rm", platform.archive);
-    cmd_run(&rm_cmd);
-#endif
-  }
-
   return true;
 }
 
@@ -88,7 +80,7 @@ int main(int argc, char **argv) {
   NOB_GO_REBUILD_URSELF(argc, argv);
 
   RaylibPlatform platform = get_raylib_platform();
-  
+
   if (!ensure_raylib(platform)) {
     nob_log(NOB_ERROR, "Failed to ensure raylib is available");
     return 1;
@@ -101,7 +93,7 @@ int main(int argc, char **argv) {
   cmd_append(&command, temp_sprintf("-I./%s/include/", platform.dir));
   cmd_append(&command, "-o", "main", "main.c");
   cmd_append(&command, temp_sprintf("-L./%s/lib/", platform.dir));
-  
+
 #ifdef _WIN32
   cmd_append(&command, "-l:libraylib.a");
   cmd_append(&command, "-lopengl32", "-lgdi32", "-lwinmm");
